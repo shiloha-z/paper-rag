@@ -13,6 +13,9 @@ data/
 config.yaml
 .env
 
+# MCP config (machine-specific paths)
+.mcp.json
+
 # Test & benchmark files
 test_*.py
 test_*.pdf
