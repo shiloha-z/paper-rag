@@ -1,0 +1,53 @@
+# ============================================================
+# Paper-RAG Configuration Template
+# Copy to config.yaml and fill in your settings
+# ============================================================
+
+# --- Zotero ---
+zotero:
+  data_dir: ""              # Auto-detect, or set manually e.g., C:/Users/you/Zotero
+  profile: ""
+
+# --- Local PDF directory (alternative to Zotero) ---
+pdf_dir:
+  path: ""
+  recursive: true
+
+# --- Embedding model ---
+# provider: "local" → sentence-transformers (BGE-M3 etc.)
+# provider: "api"    → OpenAI-compatible API
+embedding:
+  provider: "local"
+  model_path: "path/to/bge-m3"     # local model directory
+  batch_size: 64
+  device: "cuda"                   # "cuda", "cpu", or "" for auto
+
+# --- Chat LLM (OpenAI-compatible API) ---
+llm:
+  api_base: "https://api.openai.com/v1"
+  api_key: "sk-your-key-here"      # or use ${OPENAI_API_KEY}
+  model: "gpt-4o"
+  temperature: 0.3
+  max_tokens: 2048
+
+# --- Chunking ---
+chunking:
+  chunk_size: 1000
+  chunk_overlap: 150
+  keep_abstract_separate: true
+  keep_metadata: true
+
+# --- Vector store ---
+vector_store:
+  path: "./data/chroma"
+  collection: "papers"
+
+# --- Retrieval ---
+retrieval:
+  top_k: 8
+  rerank: false
+  min_score: 0.0
+
+# --- PDF parsing ---
+pdf:
+  max_pages_per_paper: 100
