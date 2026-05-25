@@ -6,6 +6,24 @@ from dataclasses import dataclass, field
 import yaml
 
 
+def _load_dotenv():
+    """Load .env from project root if python-dotenv is available."""
+    try:
+        from dotenv import load_dotenv
+
+        # Walk up from cwd / this file to find .env
+        candidates = [
+            Path.cwd() / ".env",
+            Path(__file__).resolve().parent.parent / ".env",
+        ]
+        for p in candidates:
+            if p.exists():
+                load_dotenv(p)
+                return
+    except ImportError:
+        pass
+
+
 @dataclass
 class EmbeddingConfig:
     provider: str = "local"      # "local" or "api"
@@ -105,6 +123,7 @@ def _dict_to_dataclass(cls, data: dict):
 
 
 def load_config(path: str = "config.yaml") -> Config:
+    _load_dotenv()
     config_path = Path(path)
     if not config_path.exists():
         raise FileNotFoundError(f"Config file not found: {config_path}")
