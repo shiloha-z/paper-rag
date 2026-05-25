@@ -5,77 +5,103 @@
 ## 安装
 
 ```bash
-pip install -r requirements.txt
+python -m venv venv
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+如果使用 GPU（推荐），需安装 CUDA 版 torch：
+
+```bash
+.\venv\Scripts\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cu132
 ```
 
 ## 配置
 
-编辑 `config.yaml`，填入 API 信息：
+### 1. 创建配置文件
+
+```bash
+cp config.example.yaml config.yaml
+```
+
+### 2. 创建 `.env` 放 API key
+
+```env
+DEEPSEEK_API_KEY=sk-your-key
+MODEL_NAME=deepseek-v4-flash
+API_BASE=https://api.deepseek.com/v1
+```
+
+`config.yaml` 用 `${VAR}` 语法引用 `.env` 中的变量，系统会自动加载。
+
+### 3. Embedding 选择
+
+**本地模型（推荐）** — BGE-M3，中英文都好，离线可用：
 
 ```yaml
 embedding:
-  api_base: "https://your-api.com/v1"
-  api_key: "${OPENAI_API_KEY}"     # 支持 ${ENV_VAR} 或直接写 key
-  model: "text-embedding-3-small"
-
-llm:
-  api_base: "https://your-api.com/v1"
-  api_key: "${OPENAI_API_KEY}"
-  model: "gpt-4o"
+  provider: "local"
+  model_path: "F:/ComfyUI/models/embeddings/bge-m3"
+  batch_size: 64
+  device: "cuda"
 ```
 
-也可以通过环境变量设置 key：
+**API 模型** — OpenAI 兼容接口：
 
-- `PAPERRAG_EMBED_API_KEY` 或 `OPENAI_API_KEY` → Embedding
-- `PAPERRAG_LLM_API_KEY` 或 `OPENAI_API_KEY` → LLM
+```yaml
+embedding:
+  provider: "api"
+  api_base: "${API_BASE}"
+  api_key: "${DEEPSEEK_API_KEY}"
+  model: "text-embedding-3-small"
+```
 
-Embedding 和 LLM 可以指向不同的 API 和模型，各自独立配置。
+### 4. LLM
+
+```yaml
+llm:
+  api_base: "${API_BASE}"
+  api_key: "${DEEPSEEK_API_KEY}"
+  model: "${MODEL_NAME}"
+```
+
+Embedding 和 LLM 可以指向不同的 API，各自独立配置。
 
 ## 命令
+
+所有命令在项目目录下用虚拟环境运行。
 
 ### 建索引
 
 ```bash
 # 从 Zotero 读取（自动检测安装路径）
-python cli.py index -s zotero
+.\venv\Scripts\python.exe cli.py index -s zotero
 
 # 从本地 PDF 目录扫描
-python cli.py index -s pdf_dir:f:/papers
+.\venv\Scripts\python.exe cli.py index -s pdf_dir:f:/papers
 
-# 混合来源
-python cli.py index -s zotero -s pdf_dir:f:/more_papers
-
-# 清空后重建
-python cli.py index -s zotero --clear
+# 清空后重建（解决重复索引）
+.\venv\Scripts\python.exe cli.py index -s zotero --clear
 ```
 
 ### 语义检索（仅检索，不含 LLM）
 
 ```bash
-# 基础搜索
-python cli.py search "transformer attention mechanism"
-
-# 按论文聚合结果
-python cli.py search "graph neural network" --by-paper
-
-# 指定返回数量 & Zotero collection 过滤
-python cli.py search "contrastive learning" -k 10 -c "NLP"
+.\venv\Scripts\python.exe cli.py search "transformer attention mechanism"
+.\venv\Scripts\python.exe cli.py search "graph neural network" --by-paper
+.\venv\Scripts\python.exe cli.py search "contrastive learning" -k 10 -c "NLP"
 ```
 
 ### RAG 问答（检索 + LLM 生成）
 
 ```bash
-# 单次问答
-python cli.py ask "attention 机制和 CNN 的本质区别是什么"
-
-# 不显示来源
-python cli.py ask "summarize the key findings" --no-sources
+.\venv\Scripts\python.exe cli.py ask "attention 机制和 CNN 的本质区别是什么"
+.\venv\Scripts\python.exe cli.py ask "summarize the key findings" --no-sources
 ```
 
 ### 交互式对话
 
 ```bash
-python cli.py chat
+.\venv\Scripts\python.exe cli.py chat
 ```
 
 对话中可用指令：
@@ -89,49 +115,33 @@ python cli.py chat
 ### 管理
 
 ```bash
-python cli.py stats          # 查看索引统计
-python cli.py clear          # 清空向量库
-python cli.py config-path    # 查看当前使用的配置
+.\venv\Scripts\python.exe cli.py stats          # 查看索引统计
+.\venv\Scripts\python.exe cli.py clear          # 清空向量库
 ```
 
 ## MCP Server — 让外部模型调用知识库
 
-启动 MCP server 后，任何支持 MCP 的客户端（Claude Desktop、VS Code、Cursor 等）都可以直接搜索和问答你的论文库。
+启动 MCP server 后，Claude Code 可以直接搜索和问答你的论文库。
 
-### 在 Claude Desktop 中配置
+### 配置
 
-编辑 Claude Desktop 配置文件（`claude_desktop_config.json`）：
+项目根目录已有 [`.mcp.json`](.mcp.json)，Claude Code 启动时自动识别。第一次可能弹窗问是否信任该 MCP server，确认即可。
+
+如果路径不同，编辑 `.mcp.json` 修改 `command` 和 `args`：
 
 ```json
 {
   "mcpServers": {
     "paper-rag": {
-      "command": "python",
-      "args": ["f:/REPO/RAG/mcp_server.py"],
-      "cwd": "f:/REPO/RAG"
+      "command": "F:/REPO/RAG/venv/Scripts/python.exe",
+      "args": ["F:/REPO/RAG/mcp_server.py"],
+      "cwd": "F:/REPO/RAG"
     }
   }
 }
 ```
 
-macOS / Linux 把路径换成你的实际路径。重启 Claude Desktop 后，对话中直接说"搜索我的论文库中关于 attention 的论文"即可自动调用。
-
-### 在 VS Code 中配置
-
-在 `settings.json` 中：
-
-```json
-"mcp.servers": {
-  "paper-rag": {
-    "command": "python",
-    "args": ["f:/REPO/RAG/mcp_server.py"]
-  }
-}
-```
-
 ### 提供的工具
-
-MCP server 向模型暴露 4 个工具：
 
 | 工具 | 用途 | 触发场景 |
 |------|------|----------|
@@ -140,26 +150,22 @@ MCP server 向模型暴露 4 个工具：
 | `paper_structure_search` | 按论文聚合搜索，用于概览 | "梳理一下我这个领域的主要方向" |
 | `paper_stats` | 索引统计 | "当前索引了多少篇论文" |
 
-### 同时使用 CLI 和 MCP
-
-CLI 在终端用，MCP 供编辑器/模型调用，它们共享同一份 `config.yaml` 和同一个 ChromaDB 索引，互不冲突。
+CLI 和 MCP 共享同一份配置和向量库，互不冲突。
 
 ## 从 Zotero 连接
 
-系统直接读取 Zotero 本地的 `zotero.sqlite` 数据库，不需要：
+系统直接读取 Zotero 本地的 `zotero.sqlite` 数据库，不需要 Zotero 运行、不需要 API key、不需要 WebDAV。
 
-- Zotero 处于运行状态
-- Zotero API key
-- WebDAV 同步
+读取时会自动复制 DB 到临时目录，避免和正在运行的 Zotero 产生锁冲突。
 
-支持 Zotero 的 `journalArticle`、`conferencePaper`、`preprint`、`thesis`、`bookSection` 等条目类型，自动提取标题、作者、摘要、年份、标签、合集、DOI 等元数据。
+支持 `journalArticle`、`conferencePaper`、`preprint`、`thesis`、`bookSection` 等条目类型，自动提取标题、作者、摘要、年份、标签、合集、DOI 等元数据。
 
 如果 Zotero 安装在非标准路径，在 `config.yaml` 中指定：
 
 ```yaml
 zotero:
-  data_dir: "D:/Zotero"     # Zotero 数据目录
-  profile: "xxxxxxxx.default"  # 可选，指定 profile 子目录
+  data_dir: "D:/Zotero"
+  profile: "xxxxxxxx.default"
 ```
 
 ## 分块策略
