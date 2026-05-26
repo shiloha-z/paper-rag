@@ -1,30 +1,10 @@
 #!/usr/bin/env python
 """MCP server for Paper-RAG — exposes paper search and RAG tools to LLM clients.
 
-Usage:
-    python mcp_server.py
-    python mcp_server.py --config custom_config.yaml
+Usage (via .mcp.json in project root):
+    Claude Code auto-detects .mcp.json and spawns this server on demand.
 
-Configure in Claude Desktop (claude_desktop_config.json):
-
-    {
-      "mcpServers": {
-        "paper-rag": {
-          "command": "python",
-          "args": ["f:/REPO/RAG/mcp_server.py"],
-          "cwd": "f:/REPO/RAG"
-        }
-      }
-    }
-
-Or in VS Code settings.json:
-
-    "mcp.servers": {
-      "paper-rag": {
-        "command": "python",
-        "args": ["f:/REPO/RAG/mcp_server.py"]
-      }
-    }
+    The server starts fast (< 1s) — BGE-M3 model is lazy-loaded on first tool call.
 """
 
 import json
@@ -39,9 +19,17 @@ from src.config import load_config, Config
 from src.rag_engine import RAGEngine
 
 config: Config = None
-engine: RAGEngine = None
+_engine: RAGEngine = None
 
 server = Server("paper-rag")
+
+
+def _get_engine() -> RAGEngine:
+    """Lazy-load the RAG engine so MCP init doesn't timeout."""
+    global _engine
+    if _engine is None:
+        _engine = RAGEngine(config)
+    return _engine
 
 # --- Tool implementations ---
 
@@ -73,7 +61,7 @@ def _tool_search(arguments: dict) -> str:
     collection = arguments.get("collection", "")
     if not query:
         return "Error: query is required."
-    hits = engine.retriever.search(query, top_k=top_k, filter_collection=collection or None)
+    hits = _get_engine().retriever.search(query, top_k=top_k, filter_collection=collection or None)
     return _format_hits(hits)
 
 
@@ -82,7 +70,7 @@ def _tool_ask(arguments: dict) -> str:
     top_k = min(arguments.get("top_k", 8), 20)
     if not question:
         return "Error: question is required."
-    result = engine.query(question, top_k=top_k, show_sources=False)
+    result = _get_engine().query(question, top_k=top_k, show_sources=False)
     return result["answer"]
 
 
@@ -91,7 +79,7 @@ def _tool_structure_search(arguments: dict) -> str:
     top_k = min(arguments.get("top_k", 12), 30)
     if not query:
         return "Error: query is required."
-    grouped = engine.retriever.search_by_paper(query, top_papers=top_k)
+    grouped = _get_engine().retriever.search_by_paper(query, top_papers=top_k)
 
     if not grouped:
         return "No matching papers found."
@@ -112,7 +100,7 @@ def _tool_structure_search(arguments: dict) -> str:
 
 
 def _tool_stats(_arguments: dict) -> str:
-    stats = engine.store.stats()
+    stats = _get_engine().store.stats()
     return json.dumps(stats, indent=2, ensure_ascii=False)
 
 
@@ -217,7 +205,7 @@ async def main():
 
     config_path = _find_config(config_path)
     config = load_config(config_path)
-    engine = RAGEngine(config)
+    # Engine is lazy-loaded on first tool call to avoid MCP init timeout
 
     async with stdio_server() as (reader, writer):
         await server.run(reader, writer, server.create_initialization_options())
