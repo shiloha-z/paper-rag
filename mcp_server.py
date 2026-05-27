@@ -207,8 +207,21 @@ async def main():
     config = load_config(config_path)
     # Engine is lazy-loaded on first tool call to avoid MCP init timeout
 
-    async with stdio_server() as (reader, writer):
-        await server.run(reader, writer, server.create_initialization_options())
+    import logging
+    logging.basicConfig(
+        stream=sys.stderr,
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] paper-rag: %(message)s",
+    )
+    logger = logging.getLogger("paper-rag")
+    logger.info("MCP server starting (engine lazy-loaded)")
+
+    try:
+        async with stdio_server() as (reader, writer):
+            await server.run(reader, writer, server.create_initialization_options())
+    except Exception:
+        logger.exception("Server crashed")
+        raise
 
 
 if __name__ == "__main__":
