@@ -1,6 +1,7 @@
 # ============================================================
 # Paper-RAG Configuration Template
-# Copy to config.yaml and fill in your settings
+# Copy to config.yaml, then create .env with your API keys.
+# All secrets and model names go in .env — config.yaml only references them.
 # ============================================================
 
 # --- Zotero ---
@@ -14,19 +15,20 @@ pdf_dir:
   recursive: true
 
 # --- Embedding model ---
-# provider: "local" → sentence-transformers (BGE-M3 etc.)
-# provider: "api"    → OpenAI-compatible API
+# provider: "api" (OpenAI-compatible) or "local" (sentence-transformers)
 embedding:
-  provider: "local"
-  model_path: "path/to/bge-m3"     # local model directory
-  batch_size: 64
-  device: "cuda"                   # "cuda", "cpu", or "" for auto
+  provider: "api"
+  api_base: "${EMBEDDING_API_BASE}"
+  api_key: "${SILICONFLOW_API_KEY}"
+  model: "${EMBEDDING_MODEL}"
+  batch_size: 20
+  dimensions: 4096
 
 # --- Chat LLM (OpenAI-compatible API) ---
 llm:
-  api_base: "https://api.openai.com/v1"
-  api_key: "sk-your-key-here"      # or use ${OPENAI_API_KEY}
-  model: "gpt-4o"
+  api_base: "${LLM_API_BASE}"
+  api_key: "${DEEPSEEK_API_KEY}"
+  model: "${LLM_MODEL}"
   temperature: 0.3
   max_tokens: 2048
 

@@ -23,19 +23,25 @@ python -m venv venv
 cp config.example.yaml config.yaml
 ```
 
-### 2. 创建 `.env` 放 API key
+### 2. 创建 `.env` 放 API key 和模型名称
 
 ```env
+# LLM (DeepSeek)
 DEEPSEEK_API_KEY=sk-your-key
-MODEL_NAME=deepseek-v4-flash
-API_BASE=https://api.deepseek.com/v1
+LLM_MODEL=deepseek-v4-flash
+LLM_API_BASE=https://api.deepseek.com/v1
+
+# Embedding (硅基流动 Qwen3-Embedding-8B)
+SILICONFLOW_API_KEY=sk-your-key
+EMBEDDING_API_BASE=https://api.siliconflow.cn/v1
+EMBEDDING_MODEL=Qwen/Qwen3-Embedding-8B
 ```
 
-`config.yaml` 用 `${VAR}` 语法引用 `.env` 中的变量，系统会自动加载。
+所有秘钥和模型名都在 `.env` 中管理，`config.yaml` 通过 `${VAR}` 引用。
 
-### 3. Embedding 选择
+### 3. Embedding 模式
 
-**本地模型（推荐）** — BGE-M3，中英文都好，离线可用：
+默认走 API（硅基流动 Qwen3-Embedding-8B），如需本地模型：
 
 ```yaml
 embedding:
@@ -45,26 +51,7 @@ embedding:
   device: "cuda"
 ```
 
-**API 模型** — OpenAI 兼容接口：
-
-```yaml
-embedding:
-  provider: "api"
-  api_base: "${API_BASE}"
-  api_key: "${DEEPSEEK_API_KEY}"
-  model: "text-embedding-3-small"
-```
-
-### 4. LLM
-
-```yaml
-llm:
-  api_base: "${API_BASE}"
-  api_key: "${DEEPSEEK_API_KEY}"
-  model: "${MODEL_NAME}"
-```
-
-Embedding 和 LLM 可以指向不同的 API，各自独立配置。
+本地模型不需要 API key，但需要安装 CUDA 版 torch（见安装步骤）。
 
 ## 命令
 
